@@ -46,7 +46,7 @@ class _AbstractDataset:
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         # Read image
-        img, target = self._read_sample(index)
+        img, target, name = self._read_sample(index)
         # Pre-transforms (format conversion at run-time etc.)
         if self._pre_transforms is not None:
             img, target = self._pre_transforms(img, target)
@@ -69,7 +69,7 @@ class _AbstractDataset:
             else:
                 img, target = self.sample_transforms(img, target)
 
-        return img, target
+        return img, target, name
 
     def extra_repr(self) -> str:
         return ""

@@ -21,13 +21,13 @@ from fastprogress.fastprogress import master_bar, progress_bar
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiplicativeLR, OneCycleLR
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torchvision.transforms import ColorJitter
-from torchvision.transforms.v2 import (
+from torchvision.transforms import (
     Compose,
     GaussianBlur,
     Normalize,
     RandomGrayscale,
     RandomPerspective,
-    RandomPhotometricDistort,
+    # RandomPhotometricDistort,
 )
 
 from doctr import transforms as T
@@ -418,7 +418,7 @@ def main(args):
         val_loss, exact_match, partial_match = evaluate(model, val_loader, batch_transforms, val_metric, amp=args.amp)
         if val_loss < min_loss:
             print(f"Validation loss decreased {min_loss:.6} --> {val_loss:.6}: saving state...")
-            torch.save(model.state_dict(), f"models/{exp_name}.pt")
+            torch.save(model.state_dict(), f"./../models/{exp_name}.pt")
             min_loss = val_loss
         mb.write(
             f"Epoch {epoch + 1}/{args.epochs} - Validation loss: {val_loss:.6} "
