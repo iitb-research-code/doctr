@@ -27,7 +27,7 @@ default_cfgs: Dict[str, Dict[str, Any]] = {
         "input_shape": (3, 1024, 1024),
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
-        "url": "https://doctr-static.mindee.com/models?id=v0.3.1/db_resnet50-ac60cadc.pt&src=0",
+        "url": "https://doctr-static.mindee.com/models?id=v0.7.0/db_resnet50-79bd7d70.pt&src=0",
     },
     "db_resnet34": {
         "input_shape": (3, 1024, 1024),
@@ -100,6 +100,8 @@ class DBNet(_DBNet, nn.Module):
         feature extractor: the backbone serving as feature extractor
         head_chans: the number of channels in the head
         deform_conv: whether to use deformable convolution
+        bin_thresh: threshold for binarization
+        box_thresh: minimal objectness score to consider a box
         assume_straight_pages: if True, fit straight bounding boxes only
         exportable: onnx exportable returns only logits
         cfg: the configuration dict of the model
@@ -112,6 +114,7 @@ class DBNet(_DBNet, nn.Module):
         head_chans: int = 256,
         deform_conv: bool = False,
         bin_thresh: float = 0.3,
+        box_thresh: float = 0.1,
         assume_straight_pages: bool = True,
         exportable: bool = False,
         cfg: Optional[Dict[str, Any]] = None,
@@ -160,7 +163,9 @@ class DBNet(_DBNet, nn.Module):
             nn.ConvTranspose2d(head_chans // 4, num_classes, 2, stride=2),
         )
 
-        self.postprocessor = DBPostProcessor(assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh)
+        self.postprocessor = DBPostProcessor(
+            assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh, box_thresh=box_thresh
+        )
 
         for n, m in self.named_modules():
             # Don't override the initialization of the backbone
@@ -261,13 +266,18 @@ class DBNet(_DBNet, nn.Module):
             # Unreduced version
             focal_loss = alpha_t * (1 - p_t) ** gamma * bce_loss
             # Class reduced
-            focal_loss = (seg_mask * focal_loss).sum() / seg_mask.sum()
+            focal_loss = (seg_mask * focal_loss).sum((0, 1, 2, 3)) / seg_mask.sum((0, 1, 2, 3))
 
-            # Compute dice loss for approx binary_map
-            binary_map = 1 / (1 + torch.exp(-50.0 * (prob_map - thresh_map)))
-            inter = (seg_mask * binary_map * seg_target).sum()  # type: ignore[attr-defined]
-            cardinality = (seg_mask * (binary_map + seg_target)).sum()  # type: ignore[attr-defined]
-            dice_loss = 1 - 2 * (inter + eps) / (cardinality + eps)
+            # Compute dice loss for each class or for approx binary_map
+            if len(self.class_names) > 1:
+                dice_map = torch.softmax(out_map, dim=1)
+            else:
+                # compute binary map instead
+                dice_map = 1 / (1 + torch.exp(-50.0 * (prob_map - thresh_map)))  # type: ignore[assignment]
+            # Class reduced
+            inter = (seg_mask * dice_map * seg_target).sum((0, 2, 3))
+            cardinality = (seg_mask * (dice_map + seg_target)).sum((0, 2, 3))
+            dice_loss = (1 - 2 * inter / (cardinality + eps)).mean()
 
         # Compute l1 loss for thresh_map
         if torch.any(thresh_mask):

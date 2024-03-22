@@ -91,6 +91,8 @@ class LinkNet(nn.Module, _LinkNet):
     Args:
     ----
         feature extractor: the backbone serving as feature extractor
+        bin_thresh: threshold for binarization of the output feature map
+        box_thresh: minimal objectness score to consider a box
         head_chans: number of channels in the head layers
         assume_straight_pages: if True, fit straight bounding boxes only
         exportable: onnx exportable returns only logits
@@ -102,6 +104,7 @@ class LinkNet(nn.Module, _LinkNet):
         self,
         feat_extractor: IntermediateLayerGetter,
         bin_thresh: float = 0.1,
+        box_thresh: float = 0.1,
         head_chans: int = 32,
         assume_straight_pages: bool = True,
         exportable: bool = False,
@@ -142,7 +145,7 @@ class LinkNet(nn.Module, _LinkNet):
         )
 
         self.postprocessor = LinkNetPostProcessor(
-            assume_straight_pages=self.assume_straight_pages, bin_thresh=bin_thresh
+            assume_straight_pages=self.assume_straight_pages, bin_thresh=bin_thresh, box_thresh=box_thresh
         )
 
         for n, m in self.named_modules():
@@ -234,10 +237,12 @@ class LinkNet(nn.Module, _LinkNet):
         # Class reduced
         focal_loss = (seg_mask * focal_loss).sum((0, 1, 2, 3)) / seg_mask.sum((0, 1, 2, 3))
 
-        # Dice loss
-        inter = (seg_mask * proba_map * seg_target).sum((0, 1, 2, 3))
-        cardinality = (seg_mask * (proba_map + seg_target)).sum((0, 1, 2, 3))
-        dice_loss = 1 - 2 * (inter + eps) / (cardinality + eps)
+        # Compute dice loss for each class
+        dice_map = torch.softmax(out_map, dim=1) if len(self.class_names) > 1 else proba_map
+        # Class reduced
+        inter = (seg_mask * dice_map * seg_target).sum((0, 2, 3))
+        cardinality = (seg_mask * (dice_map + seg_target)).sum((0, 2, 3))
+        dice_loss = (1 - 2 * inter / (cardinality + eps)).mean()
 
         # Return the full loss (equal sum of focal loss and dice loss)
         return focal_loss + dice_loss

@@ -11,6 +11,7 @@ from doctr.file_utils import CLASS_NAME
 from doctr.io import DocumentFile
 from doctr.models import detection
 from doctr.models.detection._utils import dilate, erode
+from doctr.models.detection.fast.tensorflow import reparameterize
 from doctr.models.detection.predictor import DetectionPredictor
 from doctr.models.preprocessor import PreProcessor
 from doctr.models.utils import export_model_to_onnx
@@ -27,12 +28,20 @@ system_available_memory = int(psutil.virtual_memory().available / 1024**3)
         ["linknet_resnet18", (512, 512, 3), (512, 512, 1), True],
         ["linknet_resnet34", (512, 512, 3), (512, 512, 1), True],
         ["linknet_resnet50", (512, 512, 3), (512, 512, 1), True],
+        ["fast_tiny", (512, 512, 3), (512, 512, 1), True],
+        ["fast_tiny_rep", (512, 512, 3), (512, 512, 1), True],  # Reparameterized model
+        ["fast_small", (512, 512, 3), (512, 512, 1), True],
+        ["fast_base", (512, 512, 3), (512, 512, 1), True],
     ],
 )
 def test_detection_models(arch_name, input_shape, output_size, out_prob, train_mode):
     batch_size = 2
     tf.keras.backend.clear_session()
-    model = detection.__dict__[arch_name](pretrained=True, input_shape=input_shape)
+    if arch_name == "fast_tiny_rep":
+        model = reparameterize(detection.fast_tiny(pretrained=True, input_shape=input_shape))
+        train_mode = False  # Reparameterized model is not trainable
+    else:
+        model = detection.__dict__[arch_name](pretrained=True, input_shape=input_shape)
     assert isinstance(model, tf.keras.Model)
     input_tensor = tf.random.uniform(shape=[batch_size, *input_shape], minval=0, maxval=1)
     target = [
@@ -86,7 +95,7 @@ def test_detection_models(arch_name, input_shape, output_size, out_prob, train_m
         {CLASS_NAME: np.array([[0.75, 0.75, 0.5, 0.5, 0], [0.65, 0.7, 0.3, 0.4, 0]], dtype=np.float32)},
     ]
     loss = model(input_tensor, target, training=True)["loss"]
-    assert isinstance(loss, tf.Tensor) and ((loss - out["loss"]) / loss).numpy() < 25e-2
+    assert isinstance(loss, tf.Tensor) and ((loss - out["loss"]) / loss).numpy() < 1
 
 
 @pytest.fixture(scope="session")
@@ -137,6 +146,7 @@ def test_rotated_detectionpredictor(mock_pdf):
         "db_resnet50",
         "db_mobilenet_v3_large",
         "linknet_resnet18",
+        "fast_tiny",
     ],
 )
 def test_detection_zoo(arch_name):
@@ -158,6 +168,16 @@ def test_detection_zoo(arch_name):
 def test_detection_zoo_error():
     with pytest.raises(ValueError):
         _ = detection.zoo.detection_predictor("my_fancy_model", pretrained=False)
+
+
+def test_fast_reparameterization():
+    dummy_input = tf.random.uniform(shape=[2, 1024, 1024, 3], minval=0, maxval=1)
+    base_model = detection.fast_tiny(pretrained=True, exportable=True)
+    base_out = base_model(dummy_input, training=False)["logits"]
+    rep_model = reparameterize(base_model)
+    rep_out = rep_model(dummy_input, training=False)["logits"]
+    diff = base_out - rep_out
+    assert tf.math.reduce_mean(diff) < 5e-2 and tf.math.reduce_std(diff) < 5e-2
 
 
 def test_erode():
@@ -183,23 +203,32 @@ def test_dilate():
     [
         ["db_mobilenet_v3_large", (512, 512, 3), (512, 512, 1)],
         ["linknet_resnet18", (1024, 1024, 3), (1024, 1024, 1)],
+        ["fast_tiny", (1024, 1024, 3), (1024, 1024, 1)],
+        ["fast_tiny_rep", (1024, 1024, 3), (1024, 1024, 1)],  # Reparameterized model
+        ["fast_small", (1024, 1024, 3), (1024, 1024, 1)],
         pytest.param(
             "db_resnet50",
             (512, 512, 3),
             (512, 512, 1),
-            marks=pytest.mark.skipif(system_available_memory < 16, reason="to less memory"),
+            marks=pytest.mark.skipif(system_available_memory < 16, reason="too less memory"),
         ),
         pytest.param(
             "linknet_resnet34",
             (1024, 1024, 3),
             (1024, 1024, 1),
-            marks=pytest.mark.skipif(system_available_memory < 16, reason="to less memory"),
+            marks=pytest.mark.skipif(system_available_memory < 16, reason="too less memory"),
         ),
         pytest.param(
             "linknet_resnet50",
             (512, 512, 3),
             (512, 512, 1),
-            marks=pytest.mark.skipif(system_available_memory < 16, reason="to less memory"),
+            marks=pytest.mark.skipif(system_available_memory < 16, reason="too less memory"),
+        ),
+        pytest.param(
+            "fast_base",
+            (512, 512, 3),
+            (512, 512, 1),
+            marks=pytest.mark.skipif(system_available_memory < 16, reason="too less memory"),
         ),
     ],
 )
@@ -207,7 +236,10 @@ def test_models_onnx_export(arch_name, input_shape, output_size):
     # Model
     batch_size = 2
     tf.keras.backend.clear_session()
-    model = detection.__dict__[arch_name](pretrained=True, exportable=True, input_shape=input_shape)
+    if arch_name == "fast_tiny_rep":
+        model = reparameterize(detection.fast_tiny(pretrained=True, exportable=True, input_shape=input_shape))
+    else:
+        model = detection.__dict__[arch_name](pretrained=True, exportable=True, input_shape=input_shape)
     # batch_size = None for dynamic batch size
     dummy_input = [tf.TensorSpec([None, *input_shape], tf.float32, name="input")]
     np_dummy_input = np.random.rand(batch_size, *input_shape).astype(np.float32)

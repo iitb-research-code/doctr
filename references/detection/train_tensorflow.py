@@ -224,12 +224,12 @@ def main(args):
             T.RandomApply(T.ColorInversion(), 0.1),
             T.RandomJpegQuality(60),
             T.RandomApply(T.GaussianNoise(mean=0.1, std=0.1), 0.1),
-            T.RandomApply(T.RandomShadow(), 0.4),
-            T.RandomApply(T.GaussianBlur(kernel_shape=3, std=(0.1, 0.1)), 0.3),
+            T.RandomApply(T.RandomShadow(), 0.1),
+            T.RandomApply(T.GaussianBlur(kernel_shape=3, std=(0.1, 0.1)), 0.1),
             T.RandomSaturation(0.3),
             T.RandomContrast(0.3),
             T.RandomBrightness(0.3),
-            T.RandomApply(T.ToGray(num_output_channels=3), 0.1),
+            T.RandomApply(T.ToGray(num_output_channels=3), 0.05),
         ]),
         sample_transforms=T.SampleCompose(
             (
@@ -268,14 +268,25 @@ def main(args):
         plot_samples(x, target)
         return
 
+    # Scheduler
+    if args.sched == "exponential":
+        scheduler = tf.keras.optimizers.schedules.ExponentialDecay(
+            args.lr,
+            decay_steps=args.epochs * len(train_loader),
+            decay_rate=1 / (25e4),  # final lr as a fraction of initial lr
+            staircase=False,
+            name="ExponentialDecay",
+        )
+    elif args.sched == "poly":
+        scheduler = tf.keras.optimizers.schedules.PolynomialDecay(
+            args.lr,
+            decay_steps=args.epochs * len(train_loader),
+            end_learning_rate=1e-7,
+            power=1.0,
+            cycle=False,
+            name="PolynomialDecay",
+        )
     # Optimizer
-    scheduler = tf.keras.optimizers.schedules.ExponentialDecay(
-        args.lr,
-        decay_steps=args.epochs * len(train_loader),
-        decay_rate=1 / (25e4),  # final lr as a fraction of initial lr
-        staircase=False,
-        name="ExponentialDecay",
-    )
     optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler, beta_1=0.95, beta_2=0.99, epsilon=1e-6, clipnorm=5)
     if args.amp:
         optimizer = mixed_precision.LossScaleOptimizer(optimizer)
@@ -334,6 +345,9 @@ def main(args):
             print(f"Validation loss decreased {min_loss:.6} --> {val_loss:.6}: saving state...")
             model.save_weights(f"./{exp_name}/weights")
             min_loss = val_loss
+        if args.save_interval_epoch:
+            print(f"Saving state at epoch: {epoch + 1}")
+            model.save_weights(f"./{exp_name}_{epoch + 1}/weights")
         log_msg = f"Epoch {epoch + 1}/{args.epochs} - Validation loss: {val_loss:.6} "
         if any(val is None for val in (recall, precision, mean_iou)):
             log_msg += "(Undefined metric value, caused by empty GTs or predictions)"
@@ -382,6 +396,9 @@ def parse_args():
     parser.add_argument("--name", type=str, default=None, help="Name of your training experiment")
     parser.add_argument("--epochs", type=int, default=10, help="number of epochs to train the model on")
     parser.add_argument("-b", "--batch_size", type=int, default=2, help="batch size for training")
+    parser.add_argument(
+        "--save-interval-epoch", dest="save_interval_epoch", action="store_true", help="Save model every epoch"
+    )
     parser.add_argument("--input_size", type=int, default=1024, help="model input size, H = W")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate for the optimizer (Adam)")
     parser.add_argument("-j", "--workers", type=int, default=None, help="number of workers used for dataloading")
@@ -409,6 +426,7 @@ def parse_args():
         action="store_true",
         help="metrics evaluation with straight boxes instead of polygons to save time + memory",
     )
+    parser.add_argument("--sched", type=str, default="poly", choices=["exponential", "poly"], help="scheduler to use")
     parser.add_argument("--amp", dest="amp", help="Use Automatic Mixed Precision", action="store_true")
     parser.add_argument("--find-lr", action="store_true", help="Gridsearch the optimal LR")
     parser.add_argument("--early-stop", action="store_true", help="Enable early stopping")

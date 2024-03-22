@@ -16,7 +16,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -54,10 +54,10 @@ jobs:
           sudo apt-get update && sudo apt-get install fonts-freefont-ttf -y
       - if: matrix.framework == 'tensorflow'
         name: Train for a short epoch (TF)
-        run: python references/classification/train_tensorflow.py vit_s -b 32 --val-samples 1 --train-samples 1 --epochs 1
+        run: python references/classification/train_tensorflow_character.py vit_s -b 32 --val-samples 1 --train-samples 1 --epochs 1
       - if: matrix.framework == 'pytorch'
         name: Train for a short epoch (PT)
-        run: python references/classification/train_pytorch.py vit_s -b 32 --val-samples 1 --train-samples 1 --epochs 1
+        run: python references/classification/train_pytorch_character.py vit_s -b 32 --val-samples 1 --train-samples 1 --epochs 1
 
   train-orientation-classification:
     runs-on: ${{ matrix.os }}
@@ -68,7 +68,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -134,7 +134,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -189,7 +189,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -233,7 +233,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -277,7 +277,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -332,7 +332,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -378,7 +378,7 @@ jobs:
         python: ["3.8"]
         framework: [tensorflow, pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -422,7 +422,7 @@ jobs:
         python: ["3.8"]
         framework: [pytorch]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

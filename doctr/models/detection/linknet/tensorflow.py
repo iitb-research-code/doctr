@@ -98,6 +98,8 @@ class LinkNet(_LinkNet, keras.Model):
     ----
         feature extractor: the backbone serving as feature extractor
         fpn_channels: number of channels each extracted feature maps is mapped to
+        bin_thresh: threshold for binarization of the output feature map
+        box_thresh: minimal objectness score to consider a box
         assume_straight_pages: if True, fit straight bounding boxes only
         exportable: onnx exportable returns only logits
         cfg: the configuration dict of the model
@@ -111,6 +113,7 @@ class LinkNet(_LinkNet, keras.Model):
         feat_extractor: IntermediateLayerGetter,
         fpn_channels: int = 64,
         bin_thresh: float = 0.1,
+        box_thresh: float = 0.1,
         assume_straight_pages: bool = True,
         exportable: bool = False,
         cfg: Optional[Dict[str, Any]] = None,
@@ -152,7 +155,9 @@ class LinkNet(_LinkNet, keras.Model):
             ),
         ])
 
-        self.postprocessor = LinkNetPostProcessor(assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh)
+        self.postprocessor = LinkNetPostProcessor(
+            assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh, box_thresh=box_thresh
+        )
 
     def compute_loss(
         self,
@@ -196,10 +201,12 @@ class LinkNet(_LinkNet, keras.Model):
         # Class reduced
         focal_loss = tf.reduce_sum(seg_mask * focal_loss, (0, 1, 2, 3)) / tf.reduce_sum(seg_mask, (0, 1, 2, 3))
 
-        # Dice loss
-        inter = tf.math.reduce_sum(seg_mask * proba_map * seg_target, (0, 1, 2, 3))
-        cardinality = tf.math.reduce_sum((proba_map + seg_target), (0, 1, 2, 3))
-        dice_loss = 1 - 2 * (inter + eps) / (cardinality + eps)
+        # Compute dice loss for each class
+        dice_map = tf.nn.softmax(out_map, axis=-1) if len(self.class_names) > 1 else proba_map
+        # Class-reduced dice loss
+        inter = tf.reduce_sum(seg_mask * dice_map * seg_target, axis=[0, 1, 2])
+        cardinality = tf.reduce_sum(seg_mask * (dice_map + seg_target), axis=[0, 1, 2])
+        dice_loss = tf.reduce_mean(1 - 2 * inter / (cardinality + eps))
 
         return focal_loss + dice_loss
 

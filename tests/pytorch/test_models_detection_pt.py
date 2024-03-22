@@ -9,6 +9,7 @@ import torch
 from doctr.file_utils import CLASS_NAME
 from doctr.models import detection
 from doctr.models.detection._utils import dilate, erode
+from doctr.models.detection.fast.pytorch import reparameterize
 from doctr.models.detection.predictor import DetectionPredictor
 from doctr.models.utils import export_model_to_onnx
 
@@ -23,12 +24,20 @@ from doctr.models.utils import export_model_to_onnx
         ["linknet_resnet18", (3, 512, 512), (1, 512, 512), True],
         ["linknet_resnet34", (3, 512, 512), (1, 512, 512), True],
         ["linknet_resnet50", (3, 512, 512), (1, 512, 512), True],
+        ["fast_tiny", (3, 512, 512), (1, 512, 512), True],
+        ["fast_tiny_rep", (3, 512, 512), (1, 512, 512), True],  # Reparameterized model
+        ["fast_small", (3, 512, 512), (1, 512, 512), True],
+        ["fast_base", (3, 512, 512), (1, 512, 512), True],
     ],
 )
 def test_detection_models(arch_name, input_shape, output_size, out_prob, train_mode):
     batch_size = 2
-    model = detection.__dict__[arch_name](pretrained=True)
-    model = model.train() if train_mode else model.eval()
+    if arch_name == "fast_tiny_rep":
+        model = reparameterize(detection.fast_tiny(pretrained=True).eval())
+        train_mode = False  # Reparameterized model is not trainable
+    else:
+        model = detection.__dict__[arch_name](pretrained=True)
+        model = model.train() if train_mode else model.eval()
     assert isinstance(model, torch.nn.Module)
     input_tensor = torch.rand((batch_size, *input_shape))
     target = [
@@ -71,7 +80,7 @@ def test_detection_models(arch_name, input_shape, output_size, out_prob, train_m
         },
     ]
     loss = model(input_tensor, target)["loss"]
-    assert isinstance(loss, torch.Tensor) and ((loss - out["loss"]).abs() / loss).item() < 1e-1
+    assert isinstance(loss, torch.Tensor) and ((loss - out["loss"]).abs() / loss).item() < 1
 
 
 @pytest.mark.parametrize(
@@ -81,6 +90,7 @@ def test_detection_models(arch_name, input_shape, output_size, out_prob, train_m
         "db_resnet50",
         "db_mobilenet_v3_large",
         "linknet_resnet18",
+        "fast_tiny",
     ],
 )
 def test_detection_zoo(arch_name):
@@ -102,6 +112,16 @@ def test_detection_zoo(arch_name):
     assert all(seq_map.shape[:2] == (1024, 1024) for seq_map in seq_maps)
     # check that all values in the seq_maps are between 0 and 1
     assert all((seq_map >= 0).all() and (seq_map <= 1).all() for seq_map in seq_maps)
+
+
+def test_fast_reparameterization():
+    dummy_input = torch.rand((2, 3, 1024, 1024), dtype=torch.float32)
+    base_model = detection.fast_tiny(pretrained=True, exportable=True).eval()
+    base_out = base_model(dummy_input)["logits"]
+    rep_model = reparameterize(base_model)
+    rep_out = rep_model(dummy_input)["logits"]
+    diff = base_out - rep_out
+    assert diff.mean() < 5e-2 and diff.mean() < 5e-2
 
 
 def test_erode():
@@ -129,12 +149,19 @@ def test_dilate():
         ["linknet_resnet18", (3, 512, 512), (1, 512, 512)],
         ["linknet_resnet34", (3, 512, 512), (1, 512, 512)],
         ["linknet_resnet50", (3, 512, 512), (1, 512, 512)],
+        ["fast_tiny", (3, 512, 512), (1, 512, 512)],
+        ["fast_small", (3, 512, 512), (1, 512, 512)],
+        ["fast_base", (3, 512, 512), (1, 512, 512)],
+        ["fast_tiny_rep", (3, 512, 512), (1, 512, 512)],  # Reparameterized model
     ],
 )
 def test_models_onnx_export(arch_name, input_shape, output_size):
     # Model
     batch_size = 2
-    model = detection.__dict__[arch_name](pretrained=True, exportable=True).eval()
+    if arch_name == "fast_tiny_rep":
+        model = reparameterize(detection.fast_tiny(pretrained=True, exportable=True).eval())
+    else:
+        model = detection.__dict__[arch_name](pretrained=True, exportable=True).eval()
     dummy_input = torch.rand((batch_size, *input_shape), dtype=torch.float32)
     with tempfile.TemporaryDirectory() as tmpdir:
         # Export

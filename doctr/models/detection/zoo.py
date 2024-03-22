@@ -17,7 +17,16 @@ ARCHS: List[str]
 
 
 if is_tf_available():
-    ARCHS = ["db_resnet50", "db_mobilenet_v3_large", "linknet_resnet18", "linknet_resnet34", "linknet_resnet50"]
+    ARCHS = [
+        "db_resnet50",
+        "db_mobilenet_v3_large",
+        "linknet_resnet18",
+        "linknet_resnet34",
+        "linknet_resnet50",
+        "fast_tiny",
+        "fast_small",
+        "fast_base",
+    ]
 elif is_torch_available():
     ARCHS = [
         "db_resnet34",
@@ -26,6 +35,9 @@ elif is_torch_available():
         "linknet_resnet18",
         "linknet_resnet34",
         "linknet_resnet50",
+        "fast_tiny",
+        "fast_small",
+        "fast_base",
     ]
 
 
@@ -40,7 +52,7 @@ def _predictor(arch: Any, pretrained: bool, assume_straight_pages: bool = True, 
             assume_straight_pages=assume_straight_pages,
         )
     else:
-        if not isinstance(arch, (detection.DBNet, detection.LinkNet)):
+        if not isinstance(arch, (detection.DBNet, detection.LinkNet, detection.FAST)):
             raise ValueError(f"unknown architecture: {type(arch)}")
 
         _model = arch
@@ -50,7 +62,7 @@ def _predictor(arch: Any, pretrained: bool, assume_straight_pages: bool = True, 
 
     kwargs["mean"] = kwargs.get("mean", _model.cfg["mean"])
     kwargs["std"] = kwargs.get("std", _model.cfg["std"])
-    kwargs["batch_size"] = kwargs.get("batch_size", 1)
+    kwargs["batch_size"] = kwargs.get("batch_size", 2)
     predictor = DetectionPredictor(
         PreProcessor(_model.cfg["input_shape"][:-1] if is_tf_available() else _model.cfg["input_shape"][1:], **kwargs),
         _model,

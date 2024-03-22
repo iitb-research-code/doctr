@@ -17,7 +17,7 @@ import numpy as np
 import psutil
 import torch
 import wandb
-from torch.optim.lr_scheduler import CosineAnnealingLR, MultiplicativeLR, OneCycleLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, MultiplicativeLR, OneCycleLR, PolynomialLR
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torchvision.transforms.v2 import Compose, GaussianBlur, Normalize, RandomGrayscale, RandomPhotometricDistort
 from tqdm.auto import tqdm
@@ -270,10 +270,10 @@ def main(args):
             # Augmentations
             T.RandomApply(T.ColorInversion(), 0.1),
             T.RandomApply(T.GaussianNoise(mean=0.1, std=0.1), 0.1),
-            T.RandomApply(T.RandomShadow(), 0.4),
-            T.RandomApply(GaussianBlur(kernel_size=3), 0.3),
-            RandomPhotometricDistort(p=0.1),
-            RandomGrayscale(p=0.1),
+            T.RandomApply(T.RandomShadow(), 0.1),
+            T.RandomApply(GaussianBlur(kernel_size=3), 0.1),
+            RandomPhotometricDistort(p=0.05),
+            RandomGrayscale(p=0.05),
         ]),
         sample_transforms=T.SampleCompose(
             (
@@ -335,6 +335,8 @@ def main(args):
         scheduler = CosineAnnealingLR(optimizer, args.epochs * len(train_loader), eta_min=args.lr / 25e4)
     elif args.sched == "onecycle":
         scheduler = OneCycleLR(optimizer, args.lr, args.epochs * len(train_loader))
+    elif args.sched == "poly":
+        scheduler = PolynomialLR(optimizer, args.epochs * len(train_loader))
 
     # Training monitoring
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -377,6 +379,9 @@ def main(args):
             print(f"Validation loss decreased {min_loss:.6} --> {val_loss:.6}: saving state...")
             torch.save(model.state_dict(), f"./{exp_name}.pt")
             min_loss = val_loss
+        if args.save_interval_epoch:
+            print(f"Saving state at epoch: {epoch + 1}")
+            torch.save(model.state_dict(), f"./{exp_name}_epoch{epoch + 1}.pt")
         log_msg = f"Epoch {epoch + 1}/{args.epochs} - Validation loss: {val_loss:.6} "
         if any(val is None for val in (recall, precision, mean_iou)):
             log_msg += "(Undefined metric value, caused by empty GTs or predictions)"
@@ -416,6 +421,9 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=10, help="number of epochs to train the model on")
     parser.add_argument("-b", "--batch_size", type=int, default=2, help="batch size for training")
     parser.add_argument("--device", default=None, type=int, help="device")
+    parser.add_argument(
+        "--save-interval-epoch", dest="save_interval_epoch", action="store_true", help="Save model every epoch"
+    )
     parser.add_argument("--input_size", type=int, default=1024, help="model input size, H = W")
     parser.add_argument("--lr", type=float, default=0.001, help="learning rate for the optimizer (Adam)")
     parser.add_argument("--wd", "--weight-decay", default=0, type=float, help="weight decay", dest="weight_decay")
@@ -442,7 +450,9 @@ def parse_args():
         action="store_true",
         help="metrics evaluation with straight boxes instead of polygons to save time + memory",
     )
-    parser.add_argument("--sched", type=str, default="cosine", help="scheduler to use")
+    parser.add_argument(
+        "--sched", type=str, default="poly", choices=["cosine", "onecycle", "poly"], help="scheduler to use"
+    )
     parser.add_argument("--amp", dest="amp", help="Use Automatic Mixed Precision", action="store_true")
     parser.add_argument("--find-lr", action="store_true", help="Gridsearch the optimal LR")
     parser.add_argument("--early-stop", action="store_true", help="Enable early stopping")

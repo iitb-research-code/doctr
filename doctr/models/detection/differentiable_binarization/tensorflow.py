@@ -29,13 +29,13 @@ default_cfgs: Dict[str, Dict[str, Any]] = {
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
         "input_shape": (1024, 1024, 3),
-        "url": "https://doctr-static.mindee.com/models?id=v0.2.0/db_resnet50-adcafc63.zip&src=0",
+        "url": "https://doctr-static.mindee.com/models?id=v0.7.0/db_resnet50-84171458.zip&src=0",
     },
     "db_mobilenet_v3_large": {
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
         "input_shape": (1024, 1024, 3),
-        "url": "https://doctr-static.mindee.com/models?id=v0.3.1/db_mobilenet_v3_large-8c16d5bf.zip&src=0",
+        "url": "https://doctr-static.mindee.com/models?id=v0.7.0/db_mobilenet_v3_large-da524564.zip&src=0",
     },
 }
 
@@ -112,6 +112,8 @@ class DBNet(_DBNet, keras.Model, NestedObject):
     ----
         feature extractor: the backbone serving as feature extractor
         fpn_channels: number of channels each extracted feature maps is mapped to
+        bin_thresh: threshold for binarization
+        box_thresh: minimal objectness score to consider a box
         assume_straight_pages: if True, fit straight bounding boxes only
         exportable: onnx exportable returns only logits
         cfg: the configuration dict of the model
@@ -125,6 +127,7 @@ class DBNet(_DBNet, keras.Model, NestedObject):
         feature_extractor: IntermediateLayerGetter,
         fpn_channels: int = 128,  # to be set to 256 to represent the author's initial idea
         bin_thresh: float = 0.3,
+        box_thresh: float = 0.1,
         assume_straight_pages: bool = True,
         exportable: bool = False,
         cfg: Optional[Dict[str, Any]] = None,
@@ -159,7 +162,9 @@ class DBNet(_DBNet, keras.Model, NestedObject):
             layers.Conv2DTranspose(num_classes, 2, strides=2, kernel_initializer="he_normal"),
         ])
 
-        self.postprocessor = DBPostProcessor(assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh)
+        self.postprocessor = DBPostProcessor(
+            assume_straight_pages=assume_straight_pages, bin_thresh=bin_thresh, box_thresh=box_thresh
+        )
 
     def compute_loss(
         self,
@@ -211,11 +216,16 @@ class DBNet(_DBNet, keras.Model, NestedObject):
         # Class reduced
         focal_loss = tf.reduce_sum(seg_mask * focal_loss, (0, 1, 2, 3)) / tf.reduce_sum(seg_mask, (0, 1, 2, 3))
 
-        # Compute dice loss for approx binary_map
-        binary_map = 1.0 / (1.0 + tf.exp(-50 * (prob_map - thresh_map)))
-        inter = tf.reduce_sum(seg_mask * binary_map * seg_target, (0, 1, 2, 3))
-        cardinality = tf.reduce_sum((binary_map + seg_target), (0, 1, 2, 3))
-        dice_loss = 1 - 2 * (inter + eps) / (cardinality + eps)
+        # Compute dice loss for each class or for approx binary_map
+        if len(self.class_names) > 1:
+            dice_map = tf.nn.softmax(out_map, axis=-1)
+        else:
+            # compute binary map instead
+            dice_map = 1.0 / (1.0 + tf.exp(-50 * (prob_map - thresh_map)))
+        # Class-reduced dice loss
+        inter = tf.reduce_sum(seg_mask * dice_map * seg_target, axis=[0, 1, 2])
+        cardinality = tf.reduce_sum(seg_mask * (dice_map + seg_target), axis=[0, 1, 2])
+        dice_loss = tf.reduce_mean(1 - 2 * inter / (cardinality + eps))
 
         # Compute l1 loss for thresh_map
         if tf.reduce_any(thresh_mask):
