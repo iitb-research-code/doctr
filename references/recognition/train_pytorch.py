@@ -115,7 +115,7 @@ def fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, m
 
     model.train()
     # Iterate over the batches of the dataset
-    for images, targets in progress_bar(train_loader, parent=mb):
+    for images, targets, name in progress_bar(train_loader, parent=mb):
         if torch.cuda.is_available():
             images = images.cuda()
         images = batch_transforms(images)
@@ -152,7 +152,7 @@ def evaluate(model, val_loader, batch_transforms, val_metric, amp=False):
     val_metric.reset()
     # Validation loop
     val_loss, batch_cnt = 0, 0
-    for images, targets in val_loader:
+    for images, targets,name in val_loader:
         if torch.cuda.is_available():
             images = images.cuda()
         images = batch_transforms(images)
@@ -231,6 +231,7 @@ def main(args):
                     T.RandomApply(T.ColorInversion(), 0.9),
                 ]
             ),
+            random_flag= args.random_flag
         )
 
     val_loader = DataLoader(
@@ -339,6 +340,7 @@ def main(args):
                     # RandomPerspective(distortion_scale=0.2, p=0.3),
                 ]
             ),
+            random_flag= args.random_flag
         )
 
     train_loader = DataLoader(
@@ -482,6 +484,7 @@ def parse_args():
     parser.add_argument("--resume", type=str, default=None, help="Path to your checkpoint")
     parser.add_argument("--vocab", type=str, default="french", help="Vocab to be used for training")
     parser.add_argument("--test-only", dest="test_only", action="store_true", help="Run the validation loop")
+    parser.add_argument("--random_flag", dest="random_flag", action="store_true", help="Set for random sampling")
     parser.add_argument(
         "--freeze-backbone", dest="freeze_backbone", action="store_true", help="freeze model backbone for fine-tuning"
     )

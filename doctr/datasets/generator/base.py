@@ -116,6 +116,7 @@ class _WordGenerator(AbstractDataset):
         font_family: Optional[Union[str, List[str]]] = None,
         img_transforms: Optional[Callable[[Any], Any]] = None,
         sample_transforms: Optional[Callable[[Any, Any], Tuple[Any, Any]]] = None,
+        random_flag: bool = True
     ) -> None:
         self.vocab = vocab
         self.wordlen_range = (min_chars, max_chars)
@@ -131,6 +132,11 @@ class _WordGenerator(AbstractDataset):
         self.img_transforms = img_transforms
         self.sample_transforms = sample_transforms
         self.words_txt_path = words_txt_path
+        self.random_flag = random_flag
+        self.word_index = 0
+        self.font_index = 0
+        with open(self.words_txt_path, "r", encoding="utf-8") as f:
+            self.total_words = len(f.readlines()) 
 
         self._data: List[Image.Image] = []
         if cache_samples:
@@ -145,9 +151,15 @@ class _WordGenerator(AbstractDataset):
         # return "".join(random.choice(self.vocab) for _ in range(num_chars))
         if self.words_txt_path:
             words_list = open(self.words_txt_path, "r", encoding="utf-8").readlines()  
-            word=""         
+            word=""
             while True:
-                word = random.choice(words_list).rstrip("\n")
+                if self.random_flag:
+                    word = random.choice(words_list).rstrip("\n")
+                else:
+                    word = words_list[self.word_index].rstrip("\n")
+                    self.word_index+=1
+                    if self.word_index==self.total_words:
+                        self.word_index=0
                 if(len(word)<max_chars):
                     break
             return word
@@ -163,7 +175,13 @@ class _WordGenerator(AbstractDataset):
             target = self._generate_string(*self.wordlen_range)
             pil_img = None
             while not pil_img:
-                font = random.choice(self.font_family)
+                if self.random_flag:
+                    font = random.choice(self.font_family)
+                else:
+                    font = self.font_family[self.font_index]
+                    self.font_index+=1
+                    if self.font_index==len(self.font_family):
+                        self.font_index=0
                 try:
                     pil_img = synthesize_text_img(target, font_family=font)
                 except:
@@ -174,4 +192,4 @@ class _WordGenerator(AbstractDataset):
         self.counter+=1      #increment counter
         #if counter is divisible by number of samples divided by 5, save the image
         img = tensor_from_pil(pil_img)
-        return img, target
+        return img, target, ""

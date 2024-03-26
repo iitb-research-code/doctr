@@ -142,3 +142,6 @@ wandb/
 # Models and data
 data/
 fonts/
+devanagari_google/
+samples/
+invalid.txt
