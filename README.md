@@ -39,11 +39,13 @@ python misc_code/preprocess.py --input_path /path/to/data.text --output_path dat
 
 3) In doctr/utils/fonts.py added support for RAQM layout engine (needed for tamil)
 
-4) In doctr/datasets/generator/base.py modified synthesize_text_img function to use RAQM layout engine and made the images centered with padding provided as pixels. 
+4) In doctr/datasets/generator/base.py modified synthesize_text_img function to use RAQM layout engine and made the images centered with padding provided as pixels. Added support for random word synthesis and sequential synthesis.
 
     The old one provided inconistent placing of text - It was not intensional - It was random inconsistency due to font property - Some fonts where always overflowing the image boundaries more than 80%, some fonts where always perfectly fit
     
     Rather than having the random offest due to font's property it would be better to have a centered image for every font and then randomly offset it (yet to be implemented) so that he offset doesnt overfit to font style.
+
+5) Recent pull changed the AbstractDataset Class definition. So modified the code in required places.
 
 ## Training Details
 
@@ -56,5 +58,5 @@ The resulting models is saved in *models* dir in the repository (ensure the dire
 
 ## Vocab - Extra
 
-In the vocab_builder directory there is source vocab for bengali, gujarati, gurumukhi, devnagiri(hindi), kannada, malayalam, oriya and telugu.
+In the vocab_builder directory there is source vocab for bengali, gujarati, gurumukhi, devnagiri(hindi+english), kannada, malayalam, oriya and telugu.
 
