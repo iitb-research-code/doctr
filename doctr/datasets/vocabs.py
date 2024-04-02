@@ -69,3 +69,38 @@ VOCABS["multilingual"] = "".join(
         + "§"
     )
 )
+
+VOCABS['benjali']    = "ঀঁংঃঅআইঈউঊঋঌএঐওঔকখগঘঙচছজঝঞটঠডঢণতথদধনপফবভমযরলশষসহ়ঽািীুূৃৄেৈোৌ্ৎৗড়ঢ়য়ৠৡৢৣ০১২৩৪৫৬৭৮৯ৰৱ৲৳৴৵৶৷৸৹৺৻ৼ৽৾"
+VOCABS['devanagari'] = "ऀँंःऄअआइईउऊऋऌऍऎएऐऑऒओऔकखगघङचछजझञटठडढणतथदधनऩपफबभमयरऱलळऴवशषसहऺऻ़ऽािीुूृॄॅॆेैॉॊोौ्ॎॏॐ॒॑॓॔ॕॖॗक़ख़ग़ज़ड़ढ़फ़य़ॠॡॢॣ।॥०१२३४५६७८९॰ॱॲॳॴॵॶॷॸॹॺॻॼॽॾॿ꣠꣡꣢꣣꣤꣥꣦꣧꣨꣩꣪꣫꣬꣭꣮꣯꣰꣱ꣲꣳꣴꣵꣶꣷ꣸꣹꣺ꣻ꣼ꣽꣾꣿ"
+VOCABS['gujarati']   = "ઁંઃઅઆઇઈઉઊઋઌઍએઐઑઓઔકખગઘઙચછજઝઞટઠડઢણતથદધનપફબભમયરલળવશષસહ઼ઽાિીુૂૃૄૅેૈૉોૌ્ૐૠૡૢૣ૦૧૨૩૪૫૬૭૮૯૰૱ૹૺૻૼ૽૾૿"
+VOCABS['gurumukhi']  = "ਁਂਃਅਆਇਈਉਊਏਐਓਔਕਖਗਘਙਚਛਜਝਞਟਠਡਢਣਤਥਦਧਨਪਫਬਭਮਯਰਲਲ਼ਵਸ਼ਸਹ਼ਾਿੀੁੂੇੈੋੌ੍ੑਖ਼ਗ਼ਜ਼ੜਫ਼੦੧੨੩੪੫੬੭੮੯ੰੱੲੳੴੵ੶"
+VOCABS['kannada']    = "ಀಁಂಃ಄ಅಆಇಈಉಊಋಌಎಏಐಒಓಔಕಖಗಘಙಚಛಜಝಞಟಠಡಢಣತಥದಧನಪಫಬಭಮಯರಱಲಳವಶಷಸಹ"
+VOCABS['malayalam']  = "ഀഁംഃഄഅആഇഈഉഊഋഌഎഏഐഒഓഔകഖഗഘങചഛജഝഞടഠഡഢണതഥദധനഩപഫബഭമയരറലളഴവശഷസഹഺ഻഼ഽാിീുൂൃൄെേൈൊോൌ്ൎ൏ൔൕൖൗ൘൙൚൛൜൝൞ൟൠൡൢൣ൦൧൨൩൪൫൬൭൮൯൰൱൲൳൴൵൶൷൸൹ൺൻർൽൾൿ"
+VOCABS['odia']       = "ଁଂଃଅଆଇଈଉଊଋଌଏଐଓଔକଖଗଘଙଚଛଜଝଞଟଠଡଢଣତଥଦଧନପଫବଭମଯରଲଳଵଶଷସହ଼ଽାିୀୁୂୃୄେୈୋୌ୍୕ୖୗଡ଼ଢ଼ୟୠୡୢୣ୦୧୨୩୪୫୬୭୮୯୰ୱ୲୳୴୵୶୷"
+VOCABS['tamil']      = "ஂஃஅஆஇஈஉஊஎஏஐஒஓஔகஙசஜஞடணதநனபமயரறலளழவஶஷஸஹாிீுூெேைொோௌ்ௐௗ௦௧௨௩௪௫௬௭௮௯௰௱௲௳௴௵௶௷௸௹௺"
+VOCABS['telugu']     = "ఀఁంఃఄఅఆఇఈఉఊఋఌఎఏఐఒఓఔకఖగఘఙచఛజఝఞటఠడఢణతథదధనపఫబభమయరఱలళఴవశషసహ఼ఽాిీుూృౄెేైొోౌ్ౕౖౘౙౚౝౠౡౢౣ౦౧౨౩౪౫౬౭౮౯౷౸౹౺౻౼౽౾౿"
+
+VOCABS['indic'] = "".join(
+    dict.fromkeys(
+        VOCABS['benjali']
+        + VOCABS['devanagari']
+        + VOCABS['gujarati']
+        + VOCABS['gurumukhi']
+        + VOCABS['kannada']
+        + VOCABS['malayalam']
+        + VOCABS['odia']
+        + VOCABS['tamil']
+        + VOCABS['telugu']
+        + VOCABS['english']
+    )
+)
+
+VOCABS['eng_ben'] = VOCABS['english'] + VOCABS['benjali']
+VOCABS['eng_dev'] = VOCABS['english'] + VOCABS['devanagari']
+VOCABS['eng_guj'] = VOCABS['english'] + VOCABS['gujarati']
+VOCABS['eng_gur'] = VOCABS['english'] + VOCABS['gurumukhi']
+VOCABS['eng_kan'] = VOCABS['english'] + VOCABS['kannada']
+VOCABS['eng_mal'] = VOCABS['english'] + VOCABS['malayalam']
+VOCABS['eng_odi'] = VOCABS['english'] + VOCABS['odia']
+VOCABS['eng_tam'] = VOCABS['english'] + VOCABS['tamil']
+VOCABS['eng_tel'] = VOCABS['english'] + VOCABS['telugu']
