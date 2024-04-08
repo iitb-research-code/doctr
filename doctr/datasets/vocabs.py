@@ -95,12 +95,15 @@ VOCABS['indic'] = "".join(
     )
 )
 
+misc_chars = " ”–’“…‌‘"
+misc_chars_tamil = '—•ï¹' + misc_chars
+
 VOCABS['eng_ben'] = VOCABS['english'] + VOCABS['benjali']
-VOCABS['eng_dev'] = VOCABS['english'] + VOCABS['devanagari']
+VOCABS['eng_dev'] = VOCABS['english'] + VOCABS['devanagari'] + misc_chars
 VOCABS['eng_guj'] = VOCABS['english'] + VOCABS['gujarati']
 VOCABS['eng_gur'] = VOCABS['english'] + VOCABS['gurumukhi']
 VOCABS['eng_kan'] = VOCABS['english'] + VOCABS['kannada']
 VOCABS['eng_mal'] = VOCABS['english'] + VOCABS['malayalam']
 VOCABS['eng_odi'] = VOCABS['english'] + VOCABS['odia']
-VOCABS['eng_tam'] = VOCABS['english'] + VOCABS['tamil']
-VOCABS['eng_tel'] = VOCABS['english'] + VOCABS['telugu']
+VOCABS['eng_tam'] = VOCABS['english'] + VOCABS['tamil'] + misc_chars_tamil
+VOCABS['eng_tel'] = VOCABS['english'] + VOCABS['telugu'] + misc_chars
