@@ -1,0 +1,4 @@
+tqdm
+pandas
+scikit-learn
+pillow==9.5.0

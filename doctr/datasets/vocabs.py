@@ -107,3 +107,5 @@ VOCABS['eng_mal'] = VOCABS['english'] + VOCABS['malayalam']
 VOCABS['eng_odi'] = VOCABS['english'] + VOCABS['odia']
 VOCABS['eng_tam'] = VOCABS['english'] + VOCABS['tamil'] + misc_chars_tamil
 VOCABS['eng_tel'] = VOCABS['english'] + VOCABS['telugu'] + misc_chars
+
+VOCABS['dev_eng'] = VOCABS['devanagari'] + VOCABS['english']
