@@ -38,7 +38,7 @@ python misc_code/generate_image_dataset.py --word_file test.txt --font_dir fonts
 
 ## Changes Made
 
-1) Included preprocess.py [Preprocess data], infer.py [To make inference], analyse.py[To get character counts in data], generate_image_dataset.py, generate_random.py
+1) Included text_preprocess.py [Preprocess data], generate_image_dataset.py, generate_random.py
 
 2) In references/train_pytorch made finding text length general to all os (previously only for linux)
 
