@@ -138,8 +138,3 @@ wandb/
 *.pt
 *.pb
 *.index
-
-samples
-fonts
-hindi
-sample_data
