@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://opensource.org/licenses/Apache-2.0> for full license details.
 
 import os
-
+import subprocess
 os.environ["USE_TORCH"] = "1"
 
 import datetime
@@ -17,17 +17,18 @@ from pathlib import Path
 import numpy as np
 import torch
 import wandb
+from fastprogress.fastprogress import master_bar, progress_bar
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiplicativeLR, OneCycleLR
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-from torchvision.transforms.v2 import (
+from torchvision.transforms import ColorJitter
+from torchvision.transforms import (
     Compose,
     GaussianBlur,
     Normalize,
     RandomGrayscale,
     RandomPerspective,
-    RandomPhotometricDistort,
+    # RandomPhotometricDistort,
 )
-from tqdm.auto import tqdm
 
 from doctr import transforms as T
 from doctr.datasets import VOCABS, RecognitionDataset, WordGenerator
@@ -107,14 +108,13 @@ def record_lr(
     return lr_recorder[: len(loss_recorder)], loss_recorder
 
 
-def fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, amp=False):
+def fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, mb, amp=False):
     if amp:
         scaler = torch.cuda.amp.GradScaler()
 
     model.train()
     # Iterate over the batches of the dataset
-    pbar = tqdm(train_loader, position=1)
-    for images, targets in pbar:
+    for images, targets in progress_bar(train_loader, parent=mb):
         if torch.cuda.is_available():
             images = images.cuda()
         images = batch_transforms(images)
@@ -140,7 +140,7 @@ def fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, a
 
         scheduler.step()
 
-        pbar.set_description(f"Training loss: {train_loss.item():.6}")
+        mb.child.comment = f"Training loss: {train_loss.item():.6}"
 
 
 @torch.no_grad()
@@ -151,7 +151,7 @@ def evaluate(model, val_loader, batch_transforms, val_metric, amp=False):
     val_metric.reset()
     # Validation loop
     val_loss, batch_cnt = 0, 0
-    for images, targets in tqdm(val_loader):
+    for images, targets in val_loader:
         if torch.cuda.is_available():
             images = images.cuda()
         images = batch_transforms(images)
@@ -187,7 +187,20 @@ def main(args):
     torch.backends.cudnn.benchmark = True
 
     vocab = VOCABS[args.vocab]
-    fonts = args.font.split(",")
+    font_files = os.listdir(args.font)
+    fonts = [args.font + "/" + element for element in font_files]
+    
+    with open(args.val_txt_path,encoding="utf-8") as f:
+        val_words = len(f.read().split())
+    with open(args.train_txt_path,encoding="utf-8") as f:
+        train_words = len(f.read().split())
+    # command = ["wc",'-l',args.val_txt_path]
+    # output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
+    # val_words = int(output.split(" ")[0])
+    
+    # command = ["wc",'-l',args.train_txt_path]
+    # output = subprocess.check_output(command, text=True, stderr=subprocess.STDOUT)
+    # train_words = int(output.split(" ")[0])
 
     # Load val data generator
     st = time.time()
@@ -207,13 +220,17 @@ def main(args):
             vocab=vocab,
             min_chars=args.min_chars,
             max_chars=args.max_chars,
-            num_samples=args.val_samples * len(vocab),
+            num_samples=val_words,
+            words_txt_path = args.val_txt_path,
             font_family=fonts,
-            img_transforms=Compose([
-                T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
-                # Ensure we have a 90% split of white-background images
-                T.RandomApply(T.ColorInversion(), 0.9),
-            ]),
+            img_transforms=Compose(
+                [
+                    T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
+                    # Ensure we have a 90% split of white-background images
+                    T.RandomApply(T.ColorInversion(), 0.9),
+                ]
+            ),
+            random_flag= args.random_flag
         )
 
     val_loader = DataLoader(
@@ -278,17 +295,20 @@ def main(args):
         train_set = RecognitionDataset(
             parts[0].joinpath("images"),
             parts[0].joinpath("labels.json"),
-            img_transforms=Compose([
-                T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
-                # Augmentations
-                T.RandomApply(T.ColorInversion(), 0.1),
-                RandomGrayscale(p=0.1),
-                RandomPhotometricDistort(p=0.1),
-                T.RandomApply(T.RandomShadow(), p=0.4),
-                T.RandomApply(T.GaussianNoise(mean=0, std=0.1), 0.1),
-                T.RandomApply(GaussianBlur(3), 0.3),
-                RandomPerspective(distortion_scale=0.2, p=0.3),
-            ]),
+            img_transforms=Compose(
+                [
+                    T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
+                    # Augmentations
+                    T.RandomApply(T.ColorInversion(), 0.1),
+                    ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.02),
+                    # RandomGrayscale(p=0.1),
+                    # RandomPhotometricDistort(p=0.1),
+                    # T.RandomApply(T.RandomShadow(), p=0.4),
+                    # T.RandomApply(T.GaussianNoise(mean=0, std=0.1), 0.1),
+                    # T.RandomApply(GaussianBlur(3), 0.3),
+                    # RandomPerspective(distortion_scale=0.2, p=0.3),
+                ]
+            ),
         )
         if len(parts) > 1:
             for subfolder in parts[1:]:
@@ -302,19 +322,23 @@ def main(args):
             vocab=vocab,
             min_chars=args.min_chars,
             max_chars=args.max_chars,
-            num_samples=args.train_samples * len(vocab),
+            num_samples=train_words,
+            words_txt_path=args.train_txt_path,
             font_family=fonts,
-            img_transforms=Compose([
-                T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
-                # Ensure we have a 90% split of white-background images
-                T.RandomApply(T.ColorInversion(), 0.9),
-                RandomGrayscale(p=0.1),
-                RandomPhotometricDistort(p=0.1),
-                T.RandomApply(T.RandomShadow(), p=0.4),
-                T.RandomApply(T.GaussianNoise(mean=0, std=0.1), 0.1),
-                T.RandomApply(GaussianBlur(3), 0.3),
-                RandomPerspective(distortion_scale=0.2, p=0.3),
-            ]),
+            img_transforms=Compose(
+                [
+                    T.Resize((args.input_size, 4 * args.input_size), preserve_aspect_ratio=True),
+                    # Ensure we have a 90% split of white-background images
+                    T.RandomApply(T.ColorInversion(), 0.9),
+                    ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.02),
+                    RandomGrayscale(p=0.1),
+                    T.RandomApply(T.RandomShadow(), p=0.4),
+                    T.RandomApply(T.GaussianNoise(mean=0, std=0.1), 0.1),
+                    T.RandomApply(GaussianBlur(3), 0.3),
+                    RandomPerspective(distortion_scale=0.2, p=0.3),
+                ]
+            ),
+            random_flag= args.random_flag
         )
 
     train_loader = DataLoader(
@@ -386,31 +410,30 @@ def main(args):
     # Create loss queue
     min_loss = np.inf
     # Training loop
-    if args.early_stop:
-        early_stopper = EarlyStopper(patience=args.early_stop_epochs, min_delta=args.early_stop_delta)
-    for epoch in range(args.epochs):
-        fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, amp=args.amp)
+    mb = master_bar(range(args.epochs))
+    for epoch in mb:
+        fit_one_epoch(model, train_loader, batch_transforms, optimizer, scheduler, mb, amp=args.amp)
 
         # Validation loop at the end of each epoch
         val_loss, exact_match, partial_match = evaluate(model, val_loader, batch_transforms, val_metric, amp=args.amp)
         if val_loss < min_loss:
             print(f"Validation loss decreased {min_loss:.6} --> {val_loss:.6}: saving state...")
-            torch.save(model.state_dict(), f"./{exp_name}.pt")
+            torch.save(model.state_dict(), f"./../models/{exp_name}.pt")
             min_loss = val_loss
-        print(
+        mb.write(
             f"Epoch {epoch + 1}/{args.epochs} - Validation loss: {val_loss:.6} "
             f"(Exact: {exact_match:.2%} | Partial: {partial_match:.2%})"
         )
         # W&B
         if args.wb:
-            wandb.log({
-                "val_loss": val_loss,
-                "exact_match": exact_match,
-                "partial_match": partial_match,
-            })
-        if args.early_stop and early_stopper.early_stop(val_loss):
-            print("Training halted early due to reaching patience limit.")
-            break
+            wandb.log(
+                {
+                    "val_loss": val_loss,
+                    "exact_match": exact_match,
+                    "partial_match": partial_match,
+                }
+            )
+
     if args.wb:
         run.finish()
 
@@ -427,6 +450,8 @@ def parse_args():
     )
 
     parser.add_argument("arch", type=str, help="text-recognition model to train")
+    parser.add_argument("--train_txt_path", help="The text file contains the words to prepare train dataset from.")
+    parser.add_argument("--val_txt_path", help="The text file contains the words to prepare validation dataset from.")
     parser.add_argument("--train_path", type=str, default=None, help="path to train data folder(s)")
     parser.add_argument("--val_path", type=str, default=None, help="path to val data folder")
     parser.add_argument(
@@ -457,6 +482,7 @@ def parse_args():
     parser.add_argument("--resume", type=str, default=None, help="Path to your checkpoint")
     parser.add_argument("--vocab", type=str, default="french", help="Vocab to be used for training")
     parser.add_argument("--test-only", dest="test_only", action="store_true", help="Run the validation loop")
+    parser.add_argument("--random_flag", dest="random_flag", action="store_true", help="Set for random sampling")
     parser.add_argument(
         "--freeze-backbone", dest="freeze_backbone", action="store_true", help="freeze model backbone for fine-tuning"
     )
@@ -474,9 +500,6 @@ def parse_args():
     parser.add_argument("--sched", type=str, default="cosine", help="scheduler to use")
     parser.add_argument("--amp", dest="amp", help="Use Automatic Mixed Precision", action="store_true")
     parser.add_argument("--find-lr", action="store_true", help="Gridsearch the optimal LR")
-    parser.add_argument("--early-stop", action="store_true", help="Enable early stopping")
-    parser.add_argument("--early-stop-epochs", type=int, default=5, help="Patience for early stopping")
-    parser.add_argument("--early-stop-delta", type=float, default=0.01, help="Minimum Delta for early stopping")
     args = parser.parse_args()
 
     return args
