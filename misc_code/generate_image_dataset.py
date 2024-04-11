@@ -53,7 +53,7 @@ class Generator:
             for i,word in enumerate(f):
                 word = word.strip()
                 fonts = self.sample_fonts(font_sample_rate)
-                if len(fonts==0):
+                if len(fonts)==0:
                     raise Exception("Check fonts and font_sample_rate. Resultant Sample is Empty")
                 for f,font in enumerate(fonts):
 
