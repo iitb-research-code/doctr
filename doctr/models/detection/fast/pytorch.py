@@ -26,19 +26,19 @@ default_cfgs: Dict[str, Dict[str, Any]] = {
         "input_shape": (3, 1024, 1024),
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
-        "url": None,
+        "url": "https://doctr-static.mindee.com/models?id=v0.8.1/fast_tiny-1acac421.pt&src=0",
     },
     "fast_small": {
         "input_shape": (3, 1024, 1024),
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
-        "url": None,
+        "url": "https://doctr-static.mindee.com/models?id=v0.8.1/fast_small-10952cc1.pt&src=0",
     },
     "fast_base": {
         "input_shape": (3, 1024, 1024),
         "mean": (0.798, 0.785, 0.772),
         "std": (0.264, 0.2749, 0.287),
-        "url": None,
+        "url": "https://doctr-static.mindee.com/models?id=v0.8.1/fast_base-688a8b34.pt&src=0",
     },
 }
 
@@ -119,7 +119,7 @@ class FAST(_FAST, nn.Module):
     def __init__(
         self,
         feat_extractor: IntermediateLayerGetter,
-        bin_thresh: float = 0.3,
+        bin_thresh: float = 0.1,
         box_thresh: float = 0.1,
         dropout_prob: float = 0.1,
         pooling_size: int = 4,  # different from paper performs better on close text-rich images

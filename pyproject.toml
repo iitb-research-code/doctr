@@ -13,7 +13,7 @@ maintainers = [
     {name = "Felix Dittrich"},
 ]
 readme = "README.md"
-requires-python = ">=3.8.0,<4"
+requires-python = ">=3.8.0,<4"  # TODO: bump to >=3.9 before release
 license = {file = "LICENSE"}
 keywords=["OCR", "deep learning", "computer vision", "tensorflow", "pytorch", "text detection", "text recognition"]
 classifiers=[
@@ -25,9 +25,9 @@ classifiers=[
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dynamic = ["version"]
@@ -83,7 +83,7 @@ docs = [
     "sphinx>=3.0.0,!=3.5.0",
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
-    "docutils<0.21",
+    "docutils<0.22",
     "recommonmark>=0.7.1",
     "sphinx-markdown-tables>=0.0.15",
     "sphinx-tabs>=3.3.0",
@@ -114,7 +114,7 @@ dev = [
     "sphinx>=3.0.0,!=3.5.0",
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
-    "docutils<0.21",
+    "docutils<0.22",
     "recommonmark>=0.7.1",
     "sphinx-markdown-tables>=0.0.15",
     "sphinx-tabs>=3.3.0",
@@ -170,7 +170,7 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = [".git", "venv*", "build", "**/__init__.py"]
 line-length = 120
-target-version = "py38"
+target-version = "py39"
 preview=true
 
 [tool.ruff.lint]

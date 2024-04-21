@@ -16,7 +16,7 @@ from doctr.utils.common_types import AbstractPath
 __all__ = ["tensor_from_pil", "read_img_as_tensor", "decode_img_as_tensor", "tensor_from_numpy", "get_img_shape"]
 
 
-def tensor_from_pil(pil_img: Image, dtype: torch.dtype = torch.float32) -> torch.Tensor:
+def tensor_from_pil(pil_img: Image.Image, dtype: torch.dtype = torch.float32) -> torch.Tensor:
     """Convert a PIL Image to a PyTorch tensor
 
     Args:
@@ -106,4 +106,4 @@ def tensor_from_numpy(npy_img: np.ndarray, dtype: torch.dtype = torch.float32) -
 
 def get_img_shape(img: torch.Tensor) -> Tuple[int, int]:
     """Get the shape of an image"""
-    return img.shape[-2:]
+    return img.shape[-2:]  # type: ignore[return-value]
