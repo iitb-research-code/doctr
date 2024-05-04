@@ -21,17 +21,17 @@
 
 1. Download the data using the command
 ```sh
-curl https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/v1-indiccorp/ta.txt >> ta.txt
+curl https://objectstore.e2enetworks.net/ai4b-public-nlu-nlg/v1-indiccorp/te.txt >> te.txt
 ``` 
 2. Specify the vocabulary as a dictonary element in ```doctr/datasets/vocabs.py```
 
 3. Run the preprocess code in preprocess.py to generate dataset of valid words from the text file.
 
 ```sh
-python misc_code/preprocess.py --input_path data/corpus/ta.txt --output_path data/trial --vocab tamil --sample 0.5 --unique --continue_check
+python misc_code/preprocess.py --input_path data/corpus/te.txt --output_path data/trial --vocab telugu --sample 0.5 --unique --continue_check
 ```
 
-4. Download the fonts from [here](https://github.com/iitb-research-code/indic-fonts/tree/main/tamil) whose directory path must be passed during training
+4. Download the fonts from [here](https://github.com/iitb-research-code/indic-fonts/tree/main/telugu) whose directory path must be passed during training
 
 ## Changes Made
 

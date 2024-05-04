@@ -171,7 +171,7 @@ Val Split: {val_count} words
 
 
 def main(args):
-    valid_vocab = VOCABS['tamil']
+    valid_vocab = VOCABS['telugu']
     preprocess = PreprocessWordDataset(args.input_path,valid_vocab)
     # preprocess(args.output_path, sample = args.sample, unique=args.unique, continue_check=args.continue_check)
     preprocess(args.output_path, args.continue_ptr, args.test_size)
